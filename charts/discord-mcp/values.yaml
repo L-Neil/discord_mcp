@@ -1,0 +1,128 @@
+# Default values for the discord-mcp chart.
+# Mirrors the manifests under k8s/. Override with `--set` or a custom values file.
+
+# History fetch is on-demand and stateless (no Gateway socket), so one replica
+# is plenty. Scale up only if you expect heavy concurrent reporting load.
+replicaCount: 1
+
+image:
+  # Where the multi-arch image is published. The bundled GitHub Actions workflow
+  # pushes to ghcr.io/<owner>/discord-mcp. Change this to your own registry.
+  repository: ghcr.io/l-neil/discord-mcp
+  pullPolicy: IfNotPresent
+  # Defaults to .Chart.appVersion when empty.
+  tag: ""
+
+# For a private registry (e.g. OCIR, or a private GHCR package), create the pull
+# secret and list it here (or attach it to the ServiceAccount below):
+#   imagePullSecrets:
+#     - name: ocir-pull-secret
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  # Annotations to add to the ServiceAccount.
+  annotations: {}
+  # Name to use; generated from the fullname template when empty.
+  name: ""
+
+# Secret holding the three required env values:
+#   DISCORD_BOT_TOKEN, DISCORD_GUILD_ID, MCP_AUTH_TOKENS
+secret:
+  # Recommended: leave create=false and point existingSecret at a Secret you
+  # made out-of-band (keeps tokens out of Helm release history). This matches
+  # the README workflow (`kubectl create secret generic discord-mcp-secrets`).
+  create: false
+  existingSecret: "discord-mcp-secrets"
+  # Used only when create=true. Prefer --set / a sealed-secrets flow over
+  # committing these to a values file.
+  botToken: ""
+  guildId: ""
+  authTokens: ""
+
+# Non-secret app config, passed as plain env vars (see src/config.ts).
+config:
+  port: 3000
+  maxMessageLimit: 500
+
+# Extra environment variables appended verbatim to the container.
+extraEnv: []
+#  - name: SOME_FLAG
+#    value: "1"
+
+service:
+  type: ClusterIP
+  port: 80
+
+ingress:
+  enabled: true
+  # k3s ships Traefik as the default ingress controller.
+  className: traefik
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # TLS via cert-manager + Let's Encrypt: uncomment and set your issuer, then
+    # fill the `tls:` block below.
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: discord-mcp.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  # TLS. Either let cert-manager fill the secret (set the annotation above) or
+  # create the secret yourself, then list it here:
+  tls: []
+  #  - secretName: discord-mcp-tls
+  #    hosts:
+  #      - discord-mcp.example.com
+
+# Port the container listens on. Should match config.port.
+containerPort: 3000
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod-level security context.
+podSecurityContext: {}
+
+# Container-level security context. The image runs as the non-root "node" user
+# and the app writes nothing to disk, so the root filesystem is read-only.
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+podAnnotations: {}
+podLabels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

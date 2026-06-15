@@ -1,0 +1,45 @@
+discord-mcp has been deployed.
+
+Release:   {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+Image:     {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+
+{{- if not .Values.secret.create }}
+
+This release reads secrets from an existing Secret named
+"{{ include "discord-mcp.secretName" . }}". Make sure it exists with the three
+required keys before the pod can start:
+
+  kubectl -n {{ .Release.Namespace }} create secret generic {{ include "discord-mcp.secretName" . }} \
+    --from-literal=DISCORD_BOT_TOKEN='<bot-token>' \
+    --from-literal=DISCORD_GUILD_ID='<guild-id>' \
+    --from-literal=MCP_AUTH_TOKENS='<tok1,tok2,...>'
+{{- end }}
+
+Check rollout:
+
+  kubectl -n {{ .Release.Namespace }} rollout status deploy/{{ include "discord-mcp.fullname" . }}
+
+{{- if .Values.ingress.enabled }}
+
+Reachable via Ingress at:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
+{{- end }}
+
+  # Health check (no auth):
+  curl http{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/healthz
+
+  # MCP tools/list (Bearer auth required):
+  curl -sS http{{ if .Values.ingress.tls }}s{{ end }}://{{ (first .Values.ingress.hosts).host }}/mcp \
+    -H 'Authorization: Bearer <one-of-MCP_AUTH_TOKENS>' \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: application/json, text/event-stream' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+{{- else }}
+
+Ingress is disabled. Port-forward to reach the server locally:
+
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "discord-mcp.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://localhost:8080/healthz
+{{- end }}

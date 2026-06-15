@@ -71,6 +71,11 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             runAsNonRoot: true
+            # The image declares `USER node` (a name). Without a numeric UID the
+            # kubelet can't verify non-root and fails with
+            # CreateContainerConfigError. node:*-slim's "node" user is UID/GID 1000.
+            runAsUser: 1000
+            runAsGroup: 1000
             capabilities:
               drop:
                 - ALL

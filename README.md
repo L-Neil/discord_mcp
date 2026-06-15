@@ -63,6 +63,14 @@
 
 ## デプロイ（イメージをビルドする人＝適用する人）
 
+> **イメージは CI が自動ビルド。** `main` への push / `v*` タグで GitHub Actions
+> （[`.github/workflows/docker-publish.yml`](./.github/workflows/docker-publish.yml)）が
+> amd64/arm64 のマルチアーキイメージを `ghcr.io/<owner>/discord-mcp` に push します。
+> 自分のレジストリに置きたいときだけ手順2の手動 buildx を使ってください。
+>
+> **Helm でも入れられます。** kustomize（下記）の代わりに
+> [`charts/discord-mcp/`](./charts/discord-mcp/README.md) を `helm install` する方法もあります。
+
 ### 1. clone
 
 ```bash
@@ -190,12 +198,20 @@ curl -sS https://<自分のホスト>/mcp \
 
 ## 各エージェントからの接続
 
-`<HOST>` を自分のドメイン、`<TOKEN>` をその人のトークンに置き換えてください。
+運用中のインスタンスは **`https://discord-mcp.ryskn.com`** です（`/mcp` が MCP
+エンドポイント、`/healthz` は認証不要のヘルスチェック）。`<TOKEN>` を配布された自分の
+トークンに置き換えてください。self-host する場合はホスト名を自分のドメインに読み替えます。
+
+```bash
+# 疎通確認（認証不要）
+curl https://discord-mcp.ryskn.com/healthz
+# -> {"status":"ok"}
+```
 
 ### Claude Code
 
 ```bash
-claude mcp add --transport http discord https://<HOST>/mcp \
+claude mcp add --transport http discord https://discord-mcp.ryskn.com/mcp \
   --header "Authorization: Bearer <TOKEN>"
 ```
 
@@ -205,7 +221,7 @@ claude mcp add --transport http discord https://<HOST>/mcp \
 
 ```toml
 [mcp_servers.discord]
-url = "https://<HOST>/mcp"
+url = "https://discord-mcp.ryskn.com/mcp"
 http_headers = { Authorization = "Bearer <TOKEN>" }
 ```
 
@@ -217,7 +233,7 @@ http_headers = { Authorization = "Bearer <TOKEN>" }
 {
   "mcpServers": {
     "discord": {
-      "httpUrl": "https://<HOST>/mcp",
+      "httpUrl": "https://discord-mcp.ryskn.com/mcp",
       "headers": { "Authorization": "Bearer <TOKEN>" }
     }
   }

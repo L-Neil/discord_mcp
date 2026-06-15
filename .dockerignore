@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+tokens-*.txt
+tokens-*.csv
+tokens-*.md
+npm-debug.log*
+*.log
+.DS_Store
+README.md
+k8s

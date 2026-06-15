@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: discord-mcp
+  annotations:
+    # k3s ships Traefik as the default ingress controller.
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    # ---- TLS option A: cert-manager + Let's Encrypt --------------------------
+    # Uncomment and set your ClusterIssuer, then add the `tls:` block below.
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: traefik
+  rules:
+    # Host is patched in via kustomize (patches/host-patch.yaml). The value here
+    # is only a placeholder.
+    - host: discord-mcp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: discord-mcp
+                port:
+                  number: 80
+  # ---- TLS ------------------------------------------------------------------
+  # Option A (cert-manager): set the cluster-issuer annotation above and add:
+  #
+  # tls:
+  #   - hosts:
+  #       - discord-mcp.example.com   # must match the patched host
+  #     secretName: discord-mcp-tls   # cert-manager creates/fills this
+  #
+  # Option B (you already hold a wildcard cert): create the secret yourself
+  #   kubectl -n discord-mcp create secret tls wildcard-tls \
+  #     --cert=fullchain.pem --key=privkey.pem
+  # then add:
+  #
+  # tls:
+  #   - hosts:
+  #       - discord-mcp.example.com
+  #     secretName: wildcard-tls

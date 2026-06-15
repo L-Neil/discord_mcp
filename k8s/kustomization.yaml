@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace everything lands in. Change if you deploy elsewhere.
+namespace: discord-mcp
+
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+# Single source of truth for the image reference. The `name` must match the
+# placeholder image used in deployment.yaml so the transform actually applies.
+# Swap it in one shot from the k8s/ dir:
+#   kustomize edit set image REGISTRY_PLACEHOLDER/discord-mcp=<your-registry>/discord-mcp:<tag>
+images:
+  - name: REGISTRY_PLACEHOLDER/discord-mcp
+    newTag: latest
+
+# Host name for the Ingress is patched in here so it lives in exactly one place.
+# Edit the host in patches/host-patch.yaml (or override with your own patch).
+patches:
+  - path: patches/host-patch.yaml
+    target:
+      kind: Ingress
+      name: discord-mcp
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app: discord-mcp

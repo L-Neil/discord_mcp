@@ -1,0 +1,6 @@
+# Sets the public hostname for the Ingress in one place (JSON6902 patch).
+# Change the value below to your domain. If you enable a `tls:` block in
+# ingress.yaml, add a matching replace op for /spec/tls/0/hosts/0.
+- op: replace
+  path: /spec/rules/0/host
+  value: discord-mcp.your-domain.example

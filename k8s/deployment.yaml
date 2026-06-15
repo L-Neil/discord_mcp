@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discord-mcp
+spec:
+  # History fetch is on-demand and stateless (no Gateway socket), so one replica
+  # is plenty. Scale up only if you expect heavy concurrent reporting load.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: discord-mcp
+  template:
+    metadata:
+      labels:
+        app: discord-mcp
+    spec:
+      serviceAccountName: discord-mcp
+      # For a private registry, create the pull secret (see README) and either
+      # set it on the ServiceAccount above or uncomment here:
+      # imagePullSecrets:
+      #   - name: ocir-pull-secret
+      containers:
+        - name: discord-mcp
+          # Placeholder — overridden by kustomize `images:` (kustomize edit set image).
+          image: REGISTRY_PLACEHOLDER/discord-mcp:latest
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: PORT
+              value: "3000"
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-mcp-secrets
+                  key: DISCORD_BOT_TOKEN
+            - name: DISCORD_GUILD_ID
+              valueFrom:
+                secretKeyRef:
+                  name: discord-mcp-secrets
+                  key: DISCORD_GUILD_ID
+            - name: MCP_AUTH_TOKENS
+              valueFrom:
+                secretKeyRef:
+                  name: discord-mcp-secrets
+                  key: MCP_AUTH_TOKENS
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
